@@ -65,6 +65,33 @@ export default function CurrentWalletAdvanced() {
     return () => abortCtrl.abort()
   }, [currentWallet, setWalletInfo, t])
 
+  const startTumbler = async () => {
+    await startTumblerService()
+  }
+
+  const startTumblerService = async () => {
+    const { name: walletName, token } = currentWallet
+
+    const externalEntries = walletInfo.accounts[4].branches[0].entries
+    const destination = externalEntries.find((entry: any) => entry.status === 'new').address
+
+    try {
+      const res = await Api.postTumblerStart(
+        { walletName, token },
+        {
+          destination,
+        }
+      )
+
+      if (res.ok) {
+        const data = await res.json()
+        console.log(data)
+      }
+    } catch (e: any) {
+      console.log(e.message)
+    }
+  }
+
   return (
     <div>
       {alert && <rb.Alert variant={alert.variant}>{alert.message}</rb.Alert>}
@@ -106,6 +133,13 @@ export default function CurrentWalletAdvanced() {
             </div>
           </rb.Fade>
         </>
+      )}
+      {!isLoading && walletInfo && (
+        <div className="mb-3">
+          <rb.Button variant="outline-dark" onClick={startTumbler} className="mb-3">
+            Start Tumbler
+          </rb.Button>
+        </div>
       )}
     </div>
   )

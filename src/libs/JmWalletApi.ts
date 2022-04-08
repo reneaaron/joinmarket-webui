@@ -61,6 +61,10 @@ interface StartMakerRequest {
   minsize: AmountSats
 }
 
+interface StartTumblerRequest {
+  destination: BitcoinAddress
+}
+
 interface DirectSendRequest {
   mixdepth: Mixdepth
   destination: BitcoinAddress
@@ -177,6 +181,15 @@ const postMakerStart = async ({ token, signal, walletName }: WalletRequestContex
   })
 }
 
+const postTumblerStart = async ({ token, signal, walletName }: WalletRequestContext, req: StartTumblerRequest) => {
+  return await fetch(`${basePath()}/v1/wallet/${walletName}/tumbler/start`, {
+    method: 'POST',
+    headers: { ...Authorization(token) },
+    body: JSON.stringify({ ...req }),
+    signal,
+  })
+}
+
 /**
  * Stop the yield generator service.
  *
@@ -284,6 +297,7 @@ const Helper = (() => {
 
 export {
   postMakerStart,
+  postTumblerStart,
   getMakerStop,
   getSession,
   postDirectSend,
