@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import * as rb from 'react-bootstrap'
 import { useTranslation } from 'react-i18next'
 import { useSettings } from '../context/SettingsContext'
-import { useCurrentWallet } from '../context/WalletContext'
+import { useCurrentWallet, useReloadCurrentWalletInfo } from '../context/WalletContext'
 import { useServiceInfo } from '../context/ServiceInfoContext'
 import Sprite from './Sprite'
 import PageTitle from './PageTitle'
@@ -74,12 +74,20 @@ const YieldgenReport = ({ lines, maxAmountOfRows = 25 }) => {
 }
 
 export default function Earn() {
+  const devMode = process.env.NODE_ENV === 'development'
+  const featureFidelityBondsEnabled = devMode
+
   const { t } = useTranslation()
   const settings = useSettings()
   const currentWallet = useCurrentWallet()
+  const reloadCurrentWalletInfo = useReloadCurrentWalletInfo()
+  const [fidelityBonds, setFidelityBonds] = useState(null)
+
   const serviceInfo = useServiceInfo()
   const [validated, setValidated] = useState(false)
   const [alert, setAlert] = useState(null)
+  const [infoAlert, setInfoAlert] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [isSending, setIsSending] = useState(false)
   const [isWaiting, setIsWaiting] = useState(false)
   const [isWaitingMakerStart, setIsWaitingMakerStart] = useState(false)
@@ -164,21 +172,55 @@ export default function Earn() {
   }
 
   useEffect(() => {
-    setAlert(null)
+    setInfoAlert(null)
     const makerRunning = serviceInfo?.makerRunning
 
     const waitingForMakerToStart = isWaitingMakerStart && !makerRunning
     setIsWaitingMakerStart(waitingForMakerToStart)
-    waitingForMakerToStart && setAlert({ variant: 'success', message: t('earn.alert_starting') })
+    waitingForMakerToStart && setInfoAlert({ variant: 'success', message: t('earn.alert_starting') })
 
     const waitingForMakerToStop = isWaitingMakerStop && makerRunning
     setIsWaitingMakerStop(waitingForMakerToStop)
-    waitingForMakerToStop && setAlert({ variant: 'success', message: t('earn.alert_stopping') })
+    waitingForMakerToStop && setInfoAlert({ variant: 'success', message: t('earn.alert_stopping') })
 
     const waiting = waitingForMakerToStart || waitingForMakerToStop
     setIsWaiting(waiting)
-    !waiting && makerRunning && setAlert({ variant: 'success', message: t('earn.alert_running') })
+    !waiting && makerRunning && setInfoAlert({ variant: 'success', message: t('earn.alert_running') })
   }, [serviceInfo, isWaitingMakerStart, isWaitingMakerStop, t])
+
+  useEffect(() => {
+    if (!featureFidelityBondsEnabled) {
+      setIsLoading(false)
+      return
+    }
+
+    if (!currentWallet) {
+      setAlert({ variant: 'danger', message: t('current_wallet.error_loading_failed') })
+      setIsLoading(false)
+      return
+    }
+
+    const abortCtrl = new AbortController()
+
+    setAlert(null)
+    setIsLoading(true)
+    setFidelityBonds(null)
+
+    reloadCurrentWalletInfo({ signal: abortCtrl.signal })
+      .then((info) => {
+        if (info) {
+          const timelockedUtxos = info.data.utxos.utxos.filter((utxo) => utxo.locktime)
+          setFidelityBonds(timelockedUtxos)
+        }
+      })
+      .catch((err) => {
+        const message = err.message || t('current_wallet.error_loading_failed')
+        !abortCtrl.signal.aborted && setAlert({ variant: 'danger', message })
+      })
+      .finally(() => !abortCtrl.signal.aborted && setIsLoading(false))
+
+    return () => abortCtrl.abort()
+  }, [featureFidelityBondsEnabled, currentWallet, reloadCurrentWalletInfo, t])
 
   useEffect(() => {
     if (!isShowReport) return
@@ -248,158 +290,183 @@ export default function Earn() {
   const isRelOffer = offertype === OFFERTYPE_REL
 
   return (
-    <div className="earn">
-      <rb.Row>
-        <rb.Col>
-          <PageTitle title={t('earn.title')} subtitle={t('earn.subtitle')} />
+    <>
+      {
+        <div className="earn">
+          <rb.Row>
+            <rb.Col>
+              <PageTitle title={t('earn.title')} subtitle={t('earn.subtitle')} />
 
-          <rb.Fade in={serviceInfo?.coinjoinInProgress} mountOnEnter={true} unmountOnExit={true}>
-            <div className="mb-4 p-3 border border-1 rounded">
-              <small className="text-secondary">{t('earn.alert_coinjoin_in_progress')}</small>
-            </div>
-          </rb.Fade>
+              <rb.Fade in={serviceInfo?.coinjoinInProgress} mountOnEnter={true} unmountOnExit={true}>
+                <div className="mb-4 p-3 border border-1 rounded">
+                  <small className="text-secondary">{t('earn.alert_coinjoin_in_progress')}</small>
+                </div>
+              </rb.Fade>
 
-          {alert && <rb.Alert variant={alert.variant}>{alert.message}</rb.Alert>}
+              {alert && <rb.Alert variant={alert.variant}>{alert.message}</rb.Alert>}
 
-          {!serviceInfo?.coinjoinInProgress && (
-            <rb.Form onSubmit={onSubmit} validated={validated} noValidate>
-              {!serviceInfo?.makerRunning && !isWaiting && (
-                <>
-                  {settings.useAdvancedWalletMode && (
-                    <rb.Form.Group className="mb-3" controlId="offertype">
-                      <ToggleSwitch
-                        label={t('earn.toggle_rel_offer')}
-                        initialValue={isRelOffer}
-                        onToggle={(isToggled) => setAndPersistOffertype(isToggled ? OFFERTYPE_REL : OFFERTYPE_ABS)}
-                      />
-                    </rb.Form.Group>
+              {infoAlert && <rb.Alert variant={infoAlert.variant}>{infoAlert.message}</rb.Alert>}
+
+              <rb.Fade
+                in={true || (fidelityBonds && fidelityBonds.length === 0)}
+                appear={true}
+                mountOnEnter={true}
+                unmountOnExit={true}
+                timeout={5000}
+              >
+                <rb.Alert variant="info">
+                  <div className="d-flex align-items-center">
+                    <div className="d-flex flex-1 justify-content-start">
+                      It seems you do not have a fidelity bond yet.
+                    </div>
+                    <div className="d-flex justify-content-end">
+                      <rb.Button variant="outline-dark">Create one!</rb.Button>{' '}
+                    </div>
+                  </div>
+                </rb.Alert>
+              </rb.Fade>
+
+              {!serviceInfo?.coinjoinInProgress && (
+                <rb.Form onSubmit={onSubmit} validated={validated} noValidate>
+                  {!serviceInfo?.makerRunning && !isWaiting && (
+                    <>
+                      {settings.useAdvancedWalletMode && (
+                        <rb.Form.Group className="mb-3" controlId="offertype">
+                          <ToggleSwitch
+                            label={t('earn.toggle_rel_offer')}
+                            initialValue={isRelOffer}
+                            onToggle={(isToggled) => setAndPersistOffertype(isToggled ? OFFERTYPE_REL : OFFERTYPE_ABS)}
+                          />
+                        </rb.Form.Group>
+                      )}
+                      {isRelOffer ? (
+                        <rb.Form.Group className="mb-3" controlId="feeRel">
+                          <rb.Form.Label className="mb-0">
+                            {t('earn.label_rel_fee', {
+                              fee: feeRel !== '' ? `(${factorToPercentage(feeRel)}%)` : '',
+                            })}
+                          </rb.Form.Label>
+                          <div className="mb-2">
+                            <rb.Form.Text className="text-secondary">{t('earn.description_rel_fee')}</rb.Form.Text>
+                          </div>
+                          <rb.Form.Control
+                            type="number"
+                            name="feeRel"
+                            value={factorToPercentage(feeRel)}
+                            className="slashed-zeroes"
+                            min={feeRelPercentageMin}
+                            max={feeRelPercentageMax}
+                            step={feeRelPercentageStep}
+                            required
+                            onChange={(e) => setAndPersistFeeRel(percentageToFactor(e.target.value))}
+                          />
+                          <rb.Form.Control.Feedback type="invalid">
+                            {t('feedback_invalid_rel_fee', {
+                              feeRelPercentageMin: `${feeRelPercentageMin}%`,
+                              feeRelPercentageMax: `${feeRelPercentageMax}%`,
+                            })}
+                          </rb.Form.Control.Feedback>
+                        </rb.Form.Group>
+                      ) : (
+                        <rb.Form.Group className="mb-3" controlId="feeAbs">
+                          <rb.Form.Label className="mb-0">{t('earn.label_abs_fee')}</rb.Form.Label>
+                          <div className="mb-2">
+                            <rb.Form.Text className="text-secondary">{t('earn.description_abs_fee')}</rb.Form.Text>
+                          </div>
+                          <rb.Form.Control
+                            type="number"
+                            name="feeAbs"
+                            value={feeAbs}
+                            className="slashed-zeroes"
+                            min={0}
+                            step={1}
+                            required
+                            onChange={(e) => setAndPersistFeeAbs(e.target.value)}
+                          />
+                          <rb.Form.Control.Feedback type="invalid">
+                            {t('earn.feedback_invalid_abs_fee')}
+                          </rb.Form.Control.Feedback>
+                        </rb.Form.Group>
+                      )}
+                      {settings.useAdvancedWalletMode && (
+                        <rb.Form.Group className="mb-3" controlId="minsize">
+                          <rb.Form.Label>{t('earn.label_min_amount')}</rb.Form.Label>
+                          <rb.Form.Control
+                            type="number"
+                            name="minsize"
+                            value={minsize}
+                            className="slashed-zeroes"
+                            min={0}
+                            step={1000}
+                            required
+                            onChange={(e) => setAndPersistMinsize(e.target.value)}
+                          />
+                          <rb.Form.Control.Feedback type="invalid">
+                            {t('earn.feedback_invalid_min_amount')}
+                          </rb.Form.Control.Feedback>
+                        </rb.Form.Group>
+                      )}
+                    </>
                   )}
-                  {isRelOffer ? (
-                    <rb.Form.Group className="mb-3" controlId="feeRel">
-                      <rb.Form.Label className="mb-0">
-                        {t('earn.label_rel_fee', {
-                          fee: feeRel !== '' ? `(${factorToPercentage(feeRel)}%)` : '',
-                        })}
-                      </rb.Form.Label>
-                      <div className="mb-2">
-                        <rb.Form.Text className="text-secondary">{t('earn.description_rel_fee')}</rb.Form.Text>
-                      </div>
-                      <rb.Form.Control
-                        type="number"
-                        name="feeRel"
-                        value={factorToPercentage(feeRel)}
-                        className="slashed-zeroes"
-                        min={feeRelPercentageMin}
-                        max={feeRelPercentageMax}
-                        step={feeRelPercentageStep}
-                        required
-                        onChange={(e) => setAndPersistFeeRel(percentageToFactor(e.target.value))}
-                      />
-                      <rb.Form.Control.Feedback type="invalid">
-                        {t('feedback_invalid_rel_fee', {
-                          feeRelPercentageMin: `${feeRelPercentageMin}%`,
-                          feeRelPercentageMax: `${feeRelPercentageMax}%`,
-                        })}
-                      </rb.Form.Control.Feedback>
-                    </rb.Form.Group>
-                  ) : (
-                    <rb.Form.Group className="mb-3" controlId="feeAbs">
-                      <rb.Form.Label className="mb-0">{t('earn.label_abs_fee')}</rb.Form.Label>
-                      <div className="mb-2">
-                        <rb.Form.Text className="text-secondary">{t('earn.description_abs_fee')}</rb.Form.Text>
-                      </div>
-                      <rb.Form.Control
-                        type="number"
-                        name="feeAbs"
-                        value={feeAbs}
-                        className="slashed-zeroes"
-                        min={0}
-                        step={1}
-                        required
-                        onChange={(e) => setAndPersistFeeAbs(e.target.value)}
-                      />
-                      <rb.Form.Control.Feedback type="invalid">
-                        {t('earn.feedback_invalid_abs_fee')}
-                      </rb.Form.Control.Feedback>
-                    </rb.Form.Group>
-                  )}
-                  {settings.useAdvancedWalletMode && (
-                    <rb.Form.Group className="mb-3" controlId="minsize">
-                      <rb.Form.Label>{t('earn.label_min_amount')}</rb.Form.Label>
-                      <rb.Form.Control
-                        type="number"
-                        name="minsize"
-                        value={minsize}
-                        className="slashed-zeroes"
-                        min={0}
-                        step={1000}
-                        required
-                        onChange={(e) => setAndPersistMinsize(e.target.value)}
-                      />
-                      <rb.Form.Control.Feedback type="invalid">
-                        {t('earn.feedback_invalid_min_amount')}
-                      </rb.Form.Control.Feedback>
-                    </rb.Form.Group>
-                  )}
-                </>
+
+                  <rb.Button variant="dark" type="submit" disabled={isSending || isWaiting}>
+                    {isSending ? (
+                      <>
+                        <rb.Spinner
+                          as="span"
+                          animation="border"
+                          size="sm"
+                          role="status"
+                          aria-hidden="true"
+                          className="me-2"
+                        />
+                        {serviceInfo?.makerRunning === true ? t('earn.text_stopping') : t('earn.text_starting')}
+                      </>
+                    ) : serviceInfo?.makerRunning === true ? (
+                      t('earn.button_stop')
+                    ) : (
+                      t('earn.button_start')
+                    )}
+                  </rb.Button>
+                </rb.Form>
               )}
+            </rb.Col>
+          </rb.Row>
 
-              <rb.Button variant="dark" type="submit" disabled={isSending || isWaiting}>
-                {isSending ? (
-                  <>
+          {settings.useAdvancedWalletMode && (
+            <rb.Row className="mt-5 mb-3">
+              <rb.Col>
+                <rb.Button
+                  variant="outline-dark"
+                  className="border-0 mb-2 d-inline-flex align-items-center"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setIsShowReport(!isShowReport)
+                  }}
+                >
+                  <Sprite symbol={isShowReport ? 'hide' : 'show'} width="24" height="24" className="me-2" />
+                  {isShowReport ? t('earn.button_hide_report') : t('earn.button_show_report')}
+                  {isReportLoading && (
                     <rb.Spinner
                       as="span"
                       animation="border"
                       size="sm"
                       role="status"
                       aria-hidden="true"
-                      className="me-2"
+                      className="ms-2 me-1"
                     />
-                    {serviceInfo?.makerRunning === true ? t('earn.text_stopping') : t('earn.text_starting')}
-                  </>
-                ) : serviceInfo?.makerRunning === true ? (
-                  t('earn.button_stop')
-                ) : (
-                  t('earn.button_start')
-                )}
-              </rb.Button>
-            </rb.Form>
+                  )}
+                </rb.Button>
+              </rb.Col>
+              <rb.Fade in={isShowReport} mountOnEnter={true} unmountOnExit={true}>
+                <rb.Col md={12}>
+                  <YieldgenReport lines={yieldgenReportLines} />
+                </rb.Col>
+              </rb.Fade>
+            </rb.Row>
           )}
-        </rb.Col>
-      </rb.Row>
-
-      {settings.useAdvancedWalletMode && (
-        <rb.Row className="mt-5 mb-3">
-          <rb.Col>
-            <rb.Button
-              variant="outline-dark"
-              className="border-0 mb-2 d-inline-flex align-items-center"
-              onClick={(e) => {
-                e.preventDefault()
-                setIsShowReport(!isShowReport)
-              }}
-            >
-              <Sprite symbol={isShowReport ? 'hide' : 'show'} width="24" height="24" className="me-2" />
-              {isShowReport ? t('earn.button_hide_report') : t('earn.button_show_report')}
-              {isReportLoading && (
-                <rb.Spinner
-                  as="span"
-                  animation="border"
-                  size="sm"
-                  role="status"
-                  aria-hidden="true"
-                  className="ms-2 me-1"
-                />
-              )}
-            </rb.Button>
-          </rb.Col>
-          <rb.Fade in={isShowReport} mountOnEnter={true} unmountOnExit={true}>
-            <rb.Col md={12}>
-              <YieldgenReport lines={yieldgenReportLines} />
-            </rb.Col>
-          </rb.Fade>
-        </rb.Row>
-      )}
-    </div>
+        </div>
+      }
+    </>
   )
 }
