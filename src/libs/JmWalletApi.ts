@@ -190,6 +190,13 @@ const postTumblerStart = async ({ token, signal, walletName }: WalletRequestCont
   })
 }
 
+const getTumblerStop = async ({ token, signal, walletName }: WalletRequestContext) => {
+  return await fetch(`${basePath()}/v1/wallet/${walletName}/tumbler/stop`, {
+    headers: { ...Authorization(token) },
+    signal,
+  })
+}
+
 /**
  * Stop the yield generator service.
  *
@@ -298,6 +305,7 @@ const Helper = (() => {
 export {
   postMakerStart,
   postTumblerStart,
+  getTumblerStop,
   getMakerStop,
   getSession,
   postDirectSend,
