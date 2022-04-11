@@ -318,10 +318,7 @@ def tumbler_taker_finished_update(taker, schedulefile, tumble_log, options,
     processing across command line and other GUI versions.
     """
 
-    tumble_log.info(f'inside tumbler_taker_finished_update: fromtx: {fromtx}; res: {res}')
-
     if fromtx == "unconfirmed":
-        tumble_log.info(f'inside tumbler_taker_finished_update: tx unconfirmed')
         #unconfirmed event means transaction has been propagated,
         #we update state to prevent accidentally re-creating it in
         #any crash/restart condition
@@ -423,7 +420,6 @@ def tumbler_taker_finished_update(taker, schedulefile, tumble_log, options,
             tumble_log.info("We tweaked the schedule, the new schedule is:")
             tumble_log.info(pprint.pformat(taker.schedule))
     else:
-        tumble_log.info(f'inside tumbler_taker_finished_update: final tx')
         if not res:
             failure_msg = "Did not complete successfully, shutting down"
             tumble_log.info(failure_msg)

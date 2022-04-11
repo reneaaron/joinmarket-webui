@@ -166,6 +166,7 @@ class JMWalletDaemon(Service):
         # keep track of client side connections so they
         # can be shut down cleanly:
         self.coinjoin_connection = None
+        # hardcode tumbler settings for now. they can later be passed via the api call that starts the tumbler or generates the schedule.
         self.tumbler_options = {
             'mixdepthsrc': 0,
             'restart': False,
@@ -501,20 +502,18 @@ class JMWalletDaemon(Service):
                 jlog.warn("Failed to shut down connection: " + repr(e))
             self.coinjoin_connection = None
 
+    # everytime a tumbler tx finishes, this is called
+    # this is pieced together code from tumbler.py and the taker_finished function above.
     def taker_finished_tumble(self, res, fromtx=False, waittime=0.0, txdetails=None):
         logsdir = os.path.join(os.path.dirname(jm_single().config_location), "logs")
         tumble_log = get_tumble_log(logsdir)
-
-        tumble_log.info("taker finished callback")
-        jlog.info("taker finished callback")
 
         sfile = os.path.join(logsdir, self.tumbler_options['schedulefile'])
         tumbler_taker_finished_update(self.taker, sfile, tumble_log, self.tumbler_options,
                                       res, fromtx, waittime, txdetails)
 
         if not fromtx:
-            jlog.info("taker_finished_tumble: final TX")
-            tumble_log.info("taker_finished_tumble: final TX")
+            # final tx of a tumbler run
             # reset our state on completion, we are no longer coinjoining:
             self.taker = None
 
@@ -543,12 +542,10 @@ class JMWalletDaemon(Service):
                     jlog.warn("Failed to shut down connection: " + repr(e))
                 self.coinjoin_connection = None
         elif fromtx != "unconfirmed":
-            jlog.info(f'taker_finished_tumble: not final TX calling again in {waittime}*60 ({waittime*60}s)')
-            tumble_log.info(f'taker_finished_tumble: not final TX calling again in {waittime}*60 ({waittime*60}s)')
+            # intermediate tx of a tumbler run. continue after the specified waittime.
             reactor.callLater(waittime*60, self.clientfactory.getClient().clientStart)
         else:
-            jlog.info("taker_finished_tumble: tx unconfirmed")
-            tumble_log.info("taker_finished_tumble: tx unconfirmed")
+            # tumbler tx seen but unconfirmed, force the wallet to sync so we'll see the confirmations without needing to lock the wallet which would stop the tumbler.
             self.services["wallet"].request_sync_wallet()
 
     def filter_orders_callback(self,orderfees, cjamount):
@@ -1122,8 +1119,6 @@ class JMWalletDaemon(Service):
             logsdir = os.path.join(os.path.dirname(jm_single().config_location), "logs")
             tumble_log = get_tumble_log(logsdir)
 
-            jlog.info("tumbler/start called")
-
             self.check_cookie(request)
 
             if not self.services["wallet"]:
@@ -1131,14 +1126,14 @@ class JMWalletDaemon(Service):
             if not self.wallet_name == walletname:
                 raise InvalidRequestFormat()
 
-            # The only required parameter in the POST JSON body is `destination`.
+            # the only required parameter in the POST JSON body for now is `destination`.
+            # later we can add more options here (currently hardcoded; see above.)
             request_data = self.get_POST_body(request, ["destination"])
             if not request_data:
                 raise InvalidRequestFormat()
 
-            # Generate the schedule.
-            # Code mostly taken from `scripts/tumbler.py`.
-
+            # generate the schedule.
+            # code mostly taken from `scripts/tumbler.py`.
             jm_single().mincjamount = self.tumbler_options['mincjamount']
 
             destaddrs = [request_data["destination"]]
@@ -1155,48 +1150,17 @@ class JMWalletDaemon(Service):
                 pprint.pformat(schedule)
             )  # <- This seems to work well. Check `~/.joinmarket/logs/.TUMBLE.log` after calling this endpoint.
 
-            # Code for callbacks is a combination of the callbakcs for the `/wallet/<walletname>/taker/coinjoin` call
+            # code for callbacks is a combination of the callbacks for the `/wallet/<walletname>/taker/coinjoin` call
             # and code taken from `scripts/tumbler.py`.
-            # I haven't looked at what it actually does so it is probably wrong.
+            # i haven't looked at what it actually does so it is probably wrong.
 
             def filter_orders_callback(orders_fees, cjamount):
                 return tumbler_filter_orders_callback(orders_fees, cjamount, self.taker)
 
-            def taker_finished_tumble(self,
-                                      res,
-                                      fromtx=False,
-                                      waittime=0.0,
-                                      txdetails=None):
-                sfile = os.path.join(logsdir, self.tumbler_options['schedulefile'])
-                tumbler_taker_finished_update(taker, sfile, tumble_log, self.tumbler_options, res,
-                                              fromtx, waittime, txdetails)
-
-                assert fromtx is not True
-
-                self.taker = None
-
-                if not res:
-                    jlog.info("Coinjoin did not complete successfully.")
-                else:
-                    jlog.info("Coinjoin completed correctly")
-
-                self.activate_coinjoin_state(CJ_NOT_RUNNING)
-                if self.clientfactory:
-                    self.clientfactory.proto_client.request_mc_shutdown()
-                if self.coinjoin_connection:
-                    try:
-                        self.coinjoin_connection.disconnect()
-                    except Exception as e:
-                        jlog.warn("Failed to shut down connection: " + repr(e))
-                    self.coinjoin_connection = None
-
             def dummy_user_callback(rel, abs):
                 raise ConfigNotPresent()
 
-            # Code for creating the taker is largely taken from the `//wallet/<walletname>/taker/coinjoin` call.
-            # I was assuming it might maybe just work.
-            # Somehow the taker gets stuck after the first tx though.
-            # Haven't investigated why.
+            # code for creating the taker is largely taken from the `//wallet/<walletname>/taker/coinjoin` call
 
             max_cj_fee = get_max_cj_fee_values(jm_single().config,
                                                None,
@@ -1205,7 +1169,6 @@ class JMWalletDaemon(Service):
             if not self.activate_coinjoin_state(CJ_TAKER_RUNNING):
                 raise ServiceAlreadyStarted()
 
-            jlog.info("creating taker")
             self.taker = Taker(self.services["wallet"],
                           schedule,
                           max_cj_fee=max_cj_fee,
@@ -1216,14 +1179,13 @@ class JMWalletDaemon(Service):
 
             dhost, dport = self.check_daemon_ready()
 
-            # Start the taker like it is done for the `/wallet/<walletname>/taker/coinjoin` call.
-            jlog.info("starting tumbler")
+            # start the taker like it is done for the `/wallet/<walletname>/taker/coinjoin` call
             _, self.coinjoin_connection = start_reactor(dhost,
                                                         dport,
                                                         self.clientfactory,
                                                         rs=False)
 
-            # Return the generated schedule.
+            # return the generated schedule
             return make_jmwalletd_response(request, schedule=schedule)
 
         @app.route('/wallet/<string:walletname>/tumbler/stop', methods=['GET'])
