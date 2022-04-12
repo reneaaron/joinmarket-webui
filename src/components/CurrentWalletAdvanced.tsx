@@ -83,7 +83,7 @@ export default function CurrentWalletAdvanced() {
       const res = await Api.postTumblerStart(
         { walletName, token },
         {
-          destination,
+          destination_addresses: [destination],
         }
       )
 
