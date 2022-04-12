@@ -9,8 +9,8 @@ ENV REPO https://github.com/dnlggr/joinmarket-clientserver
 ENV REPO_REF tumbler-tests
 
 WORKDIR /src
-# RUN git clone "$REPO" . --depth=10 --branch "$REPO_REF" && git checkout "$REPO_REF"
-COPY joinmarket-clientserver .
+RUN git clone "$REPO" . --depth=10 --branch "$REPO_REF" && git checkout "$REPO_REF"
+# COPY joinmarket-clientserver .
 
 RUN ./install.sh --docker-install --disable-secp-check --without-qt
 
