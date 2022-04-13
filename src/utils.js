@@ -39,3 +39,21 @@ export const accountBalanceBreakdown = (walletInfo, accountNumber) => {
     frozenOrLockedBalance: balanceFrozenOrLocked,
   }
 }
+
+export const copyToClipboard = (text, fallbackInputField, errorMessage) => {
+  const copyToClipboardFallback = (inputField) =>
+    new Promise((resolve, reject) => {
+      inputField.select()
+      const success = document.execCommand && document.execCommand('copy')
+      inputField.blur()
+      success ? resolve(success) : reject(new Error(errorMessage))
+    })
+
+  // `navigator.clipboard` might not be available, e.g. on sites served over plain `http`.
+  if (!navigator.clipboard) {
+    return copyToClipboardFallback(fallbackInputField)
+  }
+
+  // might not work on iOS.
+  return navigator.clipboard.writeText(text).catch(() => copyToClipboardFallback(fallbackInputField))
+}
