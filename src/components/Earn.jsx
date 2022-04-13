@@ -298,9 +298,9 @@ export default function Earn() {
               <PageTitle title={t('earn.title')} subtitle={t('earn.subtitle')} />
 
               <rb.Fade in={serviceInfo?.coinjoinInProgress} mountOnEnter={true} unmountOnExit={true}>
-                <div className="mb-4 p-3 border border-1 rounded">
-                  <small className="text-secondary">{t('earn.alert_coinjoin_in_progress')}</small>
-                </div>
+                <rb.Alert variant="info" className="mb-4">
+                  {t('earn.alert_coinjoin_in_progress')}
+                </rb.Alert>
               </rb.Fade>
 
               {alert && <rb.Alert variant={alert.variant}>{alert.message}</rb.Alert>}
@@ -320,7 +320,7 @@ export default function Earn() {
                       It seems you do not have a fidelity bond yet.
                     </div>
                     <div className="d-flex justify-content-end">
-                      <rb.Button variant="outline-dark">Create one!</rb.Button>{' '}
+                      <rb.Button variant="outline-light">Create</rb.Button>{' '}
                     </div>
                   </div>
                 </rb.Alert>
