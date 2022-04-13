@@ -11,7 +11,7 @@ import { useCurrentWalletInfo, useReloadCurrentWalletInfo, useCurrentWallet } fr
 import { useServiceInfo } from '../context/ServiceInfoContext'
 import { useSettings } from '../context/SettingsContext'
 import * as Api from '../libs/JmWalletApi'
-import { btcToSats, SATS } from '../utils'
+import { accountBalanceBreakdown, SATS } from '../utils'
 import './Send.css'
 
 // initial value for `minimum_makers` from the default joinmarket.cfg (last check on 2022-02-20 of v0.9.5)
@@ -362,33 +362,7 @@ export default function Send() {
     }
   }
 
-  const balanceBreakdown = (accountNumber) => {
-    if (!walletInfo || !walletInfo.data.display.walletinfo.accounts || !walletInfo.data.utxos.utxos) {
-      return null
-    }
-
-    const filtered = walletInfo.data.display.walletinfo.accounts.filter((account) => {
-      return parseInt(account.account, 10) === accountNumber
-    })
-
-    if (filtered.length !== 1) {
-      return null
-    }
-
-    const utxosByAccount = walletInfo.data.utxos.utxos.reduce((acc, utxo) => {
-      acc[utxo.mixdepth] = acc[utxo.mixdepth] || []
-      acc[utxo.mixdepth].push(utxo)
-      return acc
-    }, {})
-    const accountUtxos = utxosByAccount[accountNumber] || []
-    const frozenOrLockedUtxos = accountUtxos.filter((utxo) => utxo.frozen || utxo.locktime)
-    const balanceFrozenOrLocked = frozenOrLockedUtxos.reduce((acc, utxo) => acc + utxo.value, 0)
-
-    return {
-      totalBalance: btcToSats(filtered[0].account_balance),
-      frozenOrLockedBalance: balanceFrozenOrLocked,
-    }
-  }
+  const balanceBreakdown = (accountNumber) => accountBalanceBreakdown(walletInfo, accountNumber)
 
   const amountFieldValue = () => {
     if (amount === null || Number.isNaN(amount)) return ''
