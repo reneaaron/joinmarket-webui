@@ -9,6 +9,7 @@ import Earn from './Earn'
 import Receive from './Receive'
 import CurrentWalletMagic from './CurrentWalletMagic'
 import CurrentWalletAdvanced from './CurrentWalletAdvanced'
+import FidelityBond from './FidelityBond'
 import Settings from './Settings'
 import Navbar from './Navbar'
 import Layout from './Layout'
@@ -107,8 +108,9 @@ export default function App() {
                 {currentWallet && (
                   <>
                     <Route path={routes.send} element={<Send />} />
-                    <Route path={routes.earn} element={<Earn />} />
                     <Route path={routes.receive} element={<Receive />} />
+                    <Route path={routes.earn} element={<Earn />} />
+                    <Route path={routes.fidelityBond} element={<FidelityBond />} />
                     <Route path={routes.settings} element={<Settings />} />
                   </>
                 )}

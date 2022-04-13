@@ -6,4 +6,5 @@ export const routes = {
   settings: '/settings',
   wallet: '/wallet',
   createWallet: '/create-wallet',
+  fidelityBond: '/fidelity-bond',
 }

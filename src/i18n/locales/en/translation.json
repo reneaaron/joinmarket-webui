@@ -204,6 +204,11 @@
   "earn": {
     "title": "Earn bitcoin",
     "subtitle": "By making your bitcoin available for others, you help them improve their privacy and can also earn a yield.",
+    "alert_no_fidelity_bond": {
+      "title": "It seems you do not have a fidelity bond yet.",
+      "description": "TODO: This is a description of what fidelity bonds are and why you should use them.",
+      "button_create": "Create"
+    },
     "alert_empty_report": "The report is empty.",
     "text_report_length": "Showing {{ visibleLines }} of {{ linesWithoutHeader }} entries",
     "error_loading_report_failed": "Failed to load yield generator report.",
