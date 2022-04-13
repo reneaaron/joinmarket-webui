@@ -1,14 +1,15 @@
 import React from 'react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import * as rb from 'react-bootstrap'
 import { useTranslation } from 'react-i18next'
 import { BitcoinQR } from './BitcoinQR'
-import { copyToClipboard, ACCOUNTS } from '../utils'
+import { ACCOUNTS } from '../utils'
 import { useSettings } from '../context/SettingsContext'
 import { useCurrentWallet } from '../context/WalletContext'
 import * as Api from '../libs/JmWalletApi'
 import PageTitle from './PageTitle'
+import CopyButton from './CopyButton'
 import Sprite from './Sprite'
 
 export default function Receive() {
@@ -16,7 +17,6 @@ export default function Receive() {
   const location = useLocation()
   const settings = useSettings()
   const currentWallet = useCurrentWallet()
-  const addressCopyFallbackInputRef = useRef()
   const [validated, setValidated] = useState(false)
   const [alert, setAlert] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -25,8 +25,6 @@ export default function Receive() {
   const [account, setAccount] = useState(parseInt(location.state?.account, 10) || 0)
   const [addressCount, setAddressCount] = useState(0)
   const [showSettings, setShowSettings] = useState(false)
-  const [addressCopiedFlag, setAddressCopiedFlag] = useState(0)
-  const [showAddressCopiedConfirmation, setShowAddressCopiedConfirmation] = useState(false)
 
   useEffect(() => {
     const abortCtrl = new AbortController()
@@ -50,17 +48,6 @@ export default function Receive() {
 
     return () => abortCtrl.abort()
   }, [account, currentWallet, addressCount, t])
-
-  useEffect(() => {
-    if (addressCopiedFlag < 1) return
-
-    setShowAddressCopiedConfirmation(true)
-    const timer = setTimeout(() => {
-      setShowAddressCopiedConfirmation(false)
-    }, 1500)
-
-    return () => clearTimeout(timer)
-  }, [addressCopiedFlag])
 
   const onSubmit = (e) => {
     e.preventDefault()
@@ -87,44 +74,12 @@ export default function Receive() {
             <rb.Card.Body className={`${settings.theme === 'light' ? 'pt-0' : 'pt-3'} pb-0`}>
               <rb.Card.Text className="text-center slashed-zeroes">{address}</rb.Card.Text>
               <div className="d-flex justify-content-center" style={{ gap: '1rem' }}>
-                <rb.Button
-                  variant="outline-dark"
-                  data-bs-toggle="tooltip"
-                  data-bs-placement="left"
-                  onClick={() => {
-                    copyToClipboard(
-                      address,
-                      addressCopyFallbackInputRef.current,
-                      t('receive.error_copy_address_failed')
-                    ).then(
-                      () => {
-                        setAddressCopiedFlag(addressCopiedFlag + 1)
-                      },
-                      (e) => {
-                        setAlert({ variant: 'warning', message: e.message })
-                      }
-                    )
-                  }}
-                >
-                  {showAddressCopiedConfirmation ? (
-                    <>
-                      {t('receive.text_copy_address_confirmed')}
-                      <Sprite color="green" symbol="checkmark" className="ms-1" width="20" height="20" />
-                    </>
-                  ) : (
-                    t('receive.button_copy_address')
-                  )}
-                </rb.Button>
-
-                <input
-                  readOnly
-                  aria-hidden
-                  ref={addressCopyFallbackInputRef}
+                <CopyButton
+                  text={t('receive.button_copy_address')}
+                  successText={t('receive.text_copy_address_confirmed')}
                   value={address}
-                  style={{
-                    position: 'absolute',
-                    left: '-9999px',
-                    top: '-9999px',
+                  onError={() => {
+                    setAlert({ variant: 'warning', message: t('receive.error_copy_address_failed') })
                   }}
                 />
               </div>

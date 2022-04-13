@@ -12,6 +12,8 @@ export const btcToSats = (value) => Math.round(parseFloat(value) * 100000000)
 
 export const satsToBtc = (value) => parseInt(value, 10) / 100000000
 
+export const NOOP = () => {}
+
 export const accountBalanceBreakdown = (walletInfo, accountNumber) => {
   if (!walletInfo || !walletInfo.data.display.walletinfo.accounts || !walletInfo.data.utxos.utxos) {
     return null
@@ -40,13 +42,13 @@ export const accountBalanceBreakdown = (walletInfo, accountNumber) => {
   }
 }
 
-export const copyToClipboard = (text, fallbackInputField, errorMessage) => {
+export const copyToClipboard = async (text, fallbackInputField) => {
   const copyToClipboardFallback = (inputField) =>
     new Promise((resolve, reject) => {
       inputField.select()
       const success = document.execCommand && document.execCommand('copy')
       inputField.blur()
-      success ? resolve(success) : reject(new Error(errorMessage))
+      success ? resolve(success) : reject(new Error('Value could not be copied to clipboard'))
     })
 
   // `navigator.clipboard` might not be available, e.g. on sites served over plain `http`.

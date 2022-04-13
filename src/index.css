@@ -550,6 +550,10 @@ h2 {
   border-color: var(--bs-gray-800) !important;
 }
 
+:root[data-theme='dark'] .alert-info .btn.btn-outline-light {
+  border-color: var(--bs-gray-100) !important;
+}
+
 :root[data-theme='dark'] a.nav-link {
   border-color: transparent !important;
 }
