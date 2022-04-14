@@ -182,7 +182,7 @@ const postMakerStart = async ({ token, signal, walletName }: WalletRequestContex
 }
 
 const postTumblerStart = async ({ token, signal, walletName }: WalletRequestContext, req: StartTumblerRequest) => {
-  return await fetch(`${basePath()}/v1/wallet/${walletName}/tumbler/start`, {
+  return await fetch(`${basePath()}/v1/wallet/${walletName}/taker/schedule`, {
     method: 'POST',
     headers: { ...Authorization(token) },
     body: JSON.stringify({ ...req }),
@@ -191,7 +191,14 @@ const postTumblerStart = async ({ token, signal, walletName }: WalletRequestCont
 }
 
 const getTumblerStop = async ({ token, signal, walletName }: WalletRequestContext) => {
-  return await fetch(`${basePath()}/v1/wallet/${walletName}/tumbler/stop`, {
+  return await fetch(`${basePath()}/v1/wallet/${walletName}/taker/stop`, {
+    headers: { ...Authorization(token) },
+    signal,
+  })
+}
+
+const getTumblerSchedule = async ({ token, signal, walletName }: WalletRequestContext) => {
+  return await fetch(`${basePath()}/v1/wallet/${walletName}/taker/schedule`, {
     headers: { ...Authorization(token) },
     signal,
   })
@@ -306,6 +313,7 @@ export {
   postMakerStart,
   postTumblerStart,
   getTumblerStop,
+  getTumblerSchedule,
   getMakerStop,
   getSession,
   postDirectSend,

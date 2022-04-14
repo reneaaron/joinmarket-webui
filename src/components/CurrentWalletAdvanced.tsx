@@ -73,6 +73,10 @@ export default function CurrentWalletAdvanced() {
     await stopTumblerService()
   }
 
+  const getSchedule = async () => {
+    await getTumblerSchedule()
+  }
+
   const startTumblerService = async () => {
     const { name: walletName, token } = currentWallet
 
@@ -101,6 +105,21 @@ export default function CurrentWalletAdvanced() {
 
     try {
       const res = await Api.getTumblerStop({ walletName, token })
+
+      if (res.ok) {
+        const data = await res.json()
+        console.log(data)
+      }
+    } catch (e: any) {
+      console.log(e.message)
+    }
+  }
+
+  const getTumblerSchedule = async () => {
+    const { name: walletName, token } = currentWallet
+
+    try {
+      const res = await Api.getTumblerSchedule({ walletName, token })
 
       if (res.ok) {
         const data = await res.json()
@@ -160,6 +179,9 @@ export default function CurrentWalletAdvanced() {
           </rb.Button>
           <rb.Button variant="outline-dark" onClick={stopTumbler} className="mb-3">
             Stop Tumbler
+          </rb.Button>
+          <rb.Button variant="outline-dark" onClick={getSchedule} className="mb-3">
+            Get Tumbler Progress
           </rb.Button>
         </div>
       )}
