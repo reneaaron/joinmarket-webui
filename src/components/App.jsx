@@ -38,6 +38,7 @@ export default function App() {
   const [showCheatsheet, setShowCheatsheet] = useState(false)
 
   const cheatsheetEnabled = currentWallet && isFeatureEnabled('cheatsheet')
+  const fidelityBondsEnabled = isFeatureEnabled('fidelityBonds')
 
   const startWallet = useCallback(
     (name, token) => {
@@ -127,7 +128,7 @@ export default function App() {
                     <Route path={routes.send} element={<Send />} />
                     <Route path={routes.receive} element={<Receive />} />
                     <Route path={routes.earn} element={<Earn />} />
-                    <Route path={routes.fidelityBond} element={<FidelityBond />} />
+                    {fidelityBondsEnabled && <Route path={routes.fidelityBond} element={<FidelityBond />} />}
                     <Route path={routes.settings} element={<Settings />} />
                   </>
                 )}

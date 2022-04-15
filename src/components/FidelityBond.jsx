@@ -13,7 +13,6 @@ const DepositTemplate = ({ title, amount, locktime, ...props }) => {
   return (
     <rb.Card {...props}>
       <rb.Card.Body>
-        {' '}
         <rb.Card.Title>{title}</rb.Card.Title>
         <rb.Row>
           <rb.Col lg={{ order: 'last' }} className="d-flex align-items-center justify-content-end">

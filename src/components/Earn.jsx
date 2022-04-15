@@ -11,6 +11,7 @@ import PageTitle from './PageTitle'
 import ToggleSwitch from './ToggleSwitch'
 import * as Api from '../libs/JmWalletApi'
 import { routes } from '../constants/routes'
+import { isFeatureEnabled } from '../constants/featureFlags'
 
 const OFFERTYPE_REL = 'sw0reloffer'
 const OFFERTYPE_ABS = 'sw0absoffer'
@@ -76,8 +77,7 @@ const YieldgenReport = ({ lines, maxAmountOfRows = 25 }) => {
 }
 
 export default function Earn() {
-  const devMode = process.env.NODE_ENV === 'development'
-  const featureFidelityBondsEnabled = devMode
+  const featureFidelityBondsEnabled = isFeatureEnabled('fidelityBonds')
 
   const { t } = useTranslation()
   const settings = useSettings()
@@ -442,14 +442,16 @@ export default function Earn() {
 
       {settings.useAdvancedWalletMode && (
         <rb.Row className="mt-5 mb-3">
-          <rb.Col className="d-flex align-items-center justify-content-center">
-            <Link
-              to={routes.fidelityBond}
-              className={`btn btn-outline-dark border-0 mb-2 d-inline-flex align-items-center`}
-            >
-              {t('earn.button_fidelity_bond')}
-            </Link>
-          </rb.Col>
+          {featureFidelityBondsEnabled && (
+            <rb.Col className="d-flex align-items-center justify-content-center">
+              <Link
+                to={routes.fidelityBond}
+                className={`btn btn-outline-dark border-0 mb-2 d-inline-flex align-items-center`}
+              >
+                {t('earn.button_fidelity_bond')}
+              </Link>
+            </rb.Col>
+          )}
           <rb.Col className="d-flex align-items-center justify-content-center">
             <rb.Button
               variant="outline-dark"
