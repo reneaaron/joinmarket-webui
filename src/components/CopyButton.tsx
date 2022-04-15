@@ -1,8 +1,18 @@
-import React from 'react'
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import * as rb from 'react-bootstrap'
+// @ts-ignore
 import { copyToClipboard, NOOP } from '../utils'
+// @ts-ignore
 import Sprite from './Sprite'
+
+interface CopyButtonProps {
+  value: string
+  text: string
+  successText: string
+  onSuccess: (val: string) => void
+  onError: (e: Error) => void
+  successTextTimeout: number
+}
 
 export default function CopyButton({
   value,
@@ -11,8 +21,8 @@ export default function CopyButton({
   onSuccess = NOOP,
   onError = NOOP,
   successTextTimeout = 1_500,
-}) {
-  const valueFallbackInputRef = useRef()
+}: CopyButtonProps) {
+  const valueFallbackInputRef = useRef<HTMLInputElement>(null)
   const [showValueCopiedConfirmation, setShowValueCopiedConfirmation] = useState(false)
   const [valueCopiedFlag, setValueCopiedFlag] = useState(0)
 
@@ -29,7 +39,6 @@ export default function CopyButton({
 
   return (
     <>
-      {' '}
       <rb.Button
         variant="outline-dark"
         data-bs-toggle="tooltip"
@@ -38,9 +47,9 @@ export default function CopyButton({
           copyToClipboard(value, valueFallbackInputRef.current).then(
             () => {
               setValueCopiedFlag((current) => current + 1)
-              onSuccess()
+              onSuccess(value)
             },
-            (e) => {
+            (e: Error) => {
               onError(e)
             }
           )
