@@ -53,7 +53,7 @@ const LocktimeForm = ({ onChange, maxYears = DEFAULT_MAX_TIMELOCK_YEARS }) => {
     const date = new Date(Date.UTC(locktimeYear, locktimeMonth - 1, 1, 0, 0, 0))
     console.log(date.toLocaleDateString())
     onChange(dateToLocktime(date))
-  }, [locktimeYear, locktimeMonth])
+  }, [locktimeYear, locktimeMonth, onChange])
 
   const minMonth = () => {
     if (locktimeYear > currentYear) {
@@ -182,7 +182,7 @@ const DepositFormAdvanced = ({ title, ...props }) => {
       .finally(() => !abortCtrl.signal.aborted && setIsLoading(false))
 
     return () => abortCtrl.abort()
-  }, [currentWallet, locktime])
+  }, [currentWallet, locktime, t])
 
   return (
     <rb.Card {...props}>
@@ -295,7 +295,6 @@ const FidelityBondAdvanced = () => {
   const [fidelityBonds, setFidelityBonds] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [alert, setAlert] = useState(null)
-  const [infoAlert, setInfoAlert] = useState(null)
 
   useEffect(() => {
     if (!currentWallet) {
@@ -347,7 +346,6 @@ const FidelityBondAdvanced = () => {
         </div>
       )}
       {alert && <rb.Alert variant={alert.variant}>{alert.message}</rb.Alert>}
-      {infoAlert && <rb.Alert variant={infoAlert.variant}>{infoAlert.message}</rb.Alert>}
 
       <rb.Row className="mt-2 mb-3">
         <rb.Col>{!!fidelityBonds?.length && <DisplayUTXOs utxos={fidelityBonds} />}</rb.Col>
