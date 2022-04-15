@@ -1,13 +1,10 @@
-import React from 'react'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import * as rb from 'react-bootstrap'
 import { useTranslation } from 'react-i18next'
 import { useSettings } from '../context/SettingsContext'
 import Balance from './Balance'
 import { useCurrentWallet, useReloadCurrentWalletInfo } from '../context/WalletContext'
-import Sprite from './Sprite'
 import PageTitle from './PageTitle'
-import ToggleSwitch from './ToggleSwitch'
 import * as Api from '../libs/JmWalletApi'
 
 const DepositTemplate = ({ title, amount, locktime, ...props }) => {
@@ -40,7 +37,7 @@ const dateToLocktime = (date) =>
 // this is useful in simple mode - when it should be prevented that users
 // lock up their coins for an awful amount of time by accident.
 // in "advanced" mode, this can be dropped or increased substantially
-const DEFAULT_MAX_TIMELOCK_YEARS = 5
+const DEFAULT_MAX_TIMELOCK_YEARS = 10
 
 const LocktimeForm = ({ onChange, maxYears = DEFAULT_MAX_TIMELOCK_YEARS }) => {
   const { t } = useTranslation()
@@ -110,16 +107,18 @@ const LocktimeForm = ({ onChange, maxYears = DEFAULT_MAX_TIMELOCK_YEARS }) => {
   )
 }
 
+const initialLocktimeDate = () => {
+  const now = new Date()
+  const year = now.getUTCFullYear()
+  const month = now.getUTCMonth()
+  return new Date(Date.UTC(year + 1, month, 1, 0, 0, 0))
+}
+
 const DepositForm = ({ title, accounts, ...props }) => {
   const { t } = useTranslation()
-  const now = new Date()
-  const year = new Date().getUTCFullYear()
-  const month = new Date().getUTCMonth()
-  const initialLocktimeDate = new Date(Date.UTC(year + 1, month, 1, 0, 0, 0))
-
   const settings = useSettings()
   const [amount, setAmount] = useState(null)
-  const [locktime, setLocktime] = useState(dateToLocktime(initialLocktimeDate))
+  const [locktime, setLocktime] = useState(dateToLocktime(initialLocktimeDate()))
 
   return (
     <rb.Card {...props}>
@@ -156,23 +155,75 @@ const DepositForm = ({ title, accounts, ...props }) => {
 
 const DepositFormAdvanced = ({ title, ...props }) => {
   const { t } = useTranslation()
-  const now = new Date()
-  const year = new Date().getUTCFullYear()
-  const month = new Date().getUTCMonth()
-  const initialLocktimeDate = new Date(Date.UTC(year + 1, month, 1, 0, 0, 0))
+  const currentWallet = useCurrentWallet()
+  const [locktime, setLocktime] = useState(dateToLocktime(initialLocktimeDate()))
+  const [address, setAddress] = useState(null)
+  const [addressLocktime, setAddressLocktime] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [alert, setAlert] = useState(null)
 
-  const settings = useSettings()
-  const [locktime, setLocktime] = useState(dateToLocktime(initialLocktimeDate))
+  useEffect(() => {
+    const abortCtrl = new AbortController()
+    const { name: walletName, token } = currentWallet
+
+    setAlert(null)
+    setIsLoading(true)
+    Api.getAddressTimelockNew({ walletName, token, locktime, signal: abortCtrl.signal })
+      .then((res) =>
+        res.ok ? res.json() : Api.Helper.throwError(res, t('fidelity_bond.error_loading_timelock_address_failed'))
+      )
+      .then((data) => {
+        setAddress(data.address)
+        setAddressLocktime(locktime)
+      })
+      .catch((err) => {
+        !abortCtrl.signal.aborted && setAlert({ variant: 'danger', message: err.message })
+      })
+      .finally(() => !abortCtrl.signal.aborted && setIsLoading(false))
+
+    return () => abortCtrl.abort()
+  }, [currentWallet, locktime])
 
   return (
     <rb.Card {...props}>
       <rb.Card.Body>
         <rb.Card.Title>{title}</rb.Card.Title>
+
+        {alert && <rb.Alert variant={alert.variant}>{alert.message}</rb.Alert>}
+
         <rb.Form noValidate>
           <LocktimeForm onChange={setLocktime} />
         </rb.Form>
         <rb.Row>
-          <rb.Col>Expires at: {locktime}</rb.Col>
+          <rb.Col>
+            <>
+              {isLoading && (
+                <div className="d-flex justify-content-center align-items-center">
+                  <rb.Spinner
+                    as="span"
+                    animation="border"
+                    size="sm"
+                    role="status"
+                    aria-hidden="true"
+                    className="me-2"
+                  />
+                  {t('loading')}
+                </div>
+              )}
+            </>
+          </rb.Col>
+        </rb.Row>
+        <rb.Row>
+          <rb.Col>
+            <>
+              {address && (
+                <>
+                  <rb.Card.Text className="text-center slashed-zeroes">{address}</rb.Card.Text>
+                  <rb.Card.Text>Expires at: {addressLocktime}</rb.Card.Text>
+                </>
+              )}
+            </>
+          </rb.Col>
         </rb.Row>
       </rb.Card.Body>
     </rb.Card>
@@ -181,13 +232,11 @@ const DepositFormAdvanced = ({ title, ...props }) => {
 
 const FidelityBondSimple = () => {
   const { t } = useTranslation()
-  const settings = useSettings()
   const currentWallet = useCurrentWallet()
   const reloadCurrentWalletInfo = useReloadCurrentWalletInfo()
   const [fidelityBonds, setFidelityBonds] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [alert, setAlert] = useState(null)
-  const [infoAlert, setInfoAlert] = useState(null)
 
   useEffect(() => {
     if (!currentWallet) {
@@ -227,7 +276,6 @@ const FidelityBondSimple = () => {
         </div>
       )}
       {alert && <rb.Alert variant={alert.variant}>{alert.message}</rb.Alert>}
-      {infoAlert && <rb.Alert variant={infoAlert.variant}>{infoAlert.message}</rb.Alert>}
 
       <rb.Fade in={fidelityBonds && fidelityBonds.length === 0} mountOnEnter={true} unmountOnExit={true}>
         <>
@@ -242,7 +290,6 @@ const FidelityBondSimple = () => {
 
 const FidelityBondAdvanced = () => {
   const { t } = useTranslation()
-  const settings = useSettings()
   const currentWallet = useCurrentWallet()
   const reloadCurrentWalletInfo = useReloadCurrentWalletInfo()
   const [fidelityBonds, setFidelityBonds] = useState(null)

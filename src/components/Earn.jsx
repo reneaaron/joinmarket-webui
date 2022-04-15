@@ -442,7 +442,15 @@ export default function Earn() {
 
       {settings.useAdvancedWalletMode && (
         <rb.Row className="mt-5 mb-3">
-          <rb.Col>
+          <rb.Col className="d-flex align-items-center justify-content-center">
+            <Link
+              to={routes.fidelityBond}
+              className={`btn btn-outline-dark border-0 mb-2 d-inline-flex align-items-center`}
+            >
+              {t('earn.button_fidelity_bond')}
+            </Link>
+          </rb.Col>
+          <rb.Col className="d-flex align-items-center justify-content-center">
             <rb.Button
               variant="outline-dark"
               className="border-0 mb-2 d-inline-flex align-items-center"
