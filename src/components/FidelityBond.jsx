@@ -5,6 +5,7 @@ import { useSettings } from '../context/SettingsContext'
 import Balance from './Balance'
 import { useCurrentWallet, useReloadCurrentWalletInfo } from '../context/WalletContext'
 import PageTitle from './PageTitle'
+import DisplayUTXOs from './DisplayUTXOs'
 import * as Api from '../libs/JmWalletApi'
 
 const DepositTemplate = ({ title, amount, locktime, ...props }) => {
@@ -347,6 +348,10 @@ const FidelityBondAdvanced = () => {
       )}
       {alert && <rb.Alert variant={alert.variant}>{alert.message}</rb.Alert>}
       {infoAlert && <rb.Alert variant={infoAlert.variant}>{infoAlert.message}</rb.Alert>}
+
+      <rb.Row className="mt-2 mb-3">
+        <rb.Col>{!!fidelityBonds?.length && <DisplayUTXOs utxos={fidelityBonds} />}</rb.Col>
+      </rb.Row>
 
       <DepositFormAdvanced title="form" />
     </div>
